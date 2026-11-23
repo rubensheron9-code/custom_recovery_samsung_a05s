@@ -1,0 +1,61 @@
+name: Build TWRP recovery
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ twrp-12.1 ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Free up disk space
+        run: |
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc /usr/local/.ghc /usr/lib/google-cloud-sdk
+          sudo apt-get clean
+          df -h
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y repo git-lfs
+          git config --global user.name "roosti"
+          git config --global user.email "rubensheron9-code@users.noreply.github.com"
+
+      - name: Sync TWRP 12.1 minimal manifest
+        run: |
+          mkdir -p ~/twrp
+          cd ~/twrp
+          repo init -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1 --depth=1
+          repo sync -c -j4 --no-clone-bundle --no-tags --depth=1
+
+      - name: Clone this device tree
+        run: |
+          cd ~/twrp
+          git clone https://github.com/${{ github.repository }}.git device/samsung/a05s -b twrp-12.1 --depth=1
+
+      - name: Build recovery image
+        run: |
+          cd ~/twrp
+          export ALLOW_MISSING_DEPENDENCIES=true
+          source build/envsetup.sh
+          lunch twrp_a05s-eng
+          mka recoveryimage -j4
+
+      - name: Package Odin tar
+        run: |
+          cd ~/twrp
+          IMG=$(find out/target/product -name recovery.img | head -n 1)
+          echo "Found image: $IMG"
+          cp "$IMG" "$GITHUB_WORKSPACE/twrp-a05s-recovery.img"
+          cd "$GITHUB_WORKSPACE"
+          tar -cf twrp-a05s-recovery.tar twrp-a05s-recovery.img
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: twrp-a05s-recovery
+          path: |
+            twrp-a05s-recovery.img
+            twrp-a05s-recovery.tar
