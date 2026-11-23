@@ -5,6 +5,9 @@ on:
   push:
     branches: [ twrp-12.1 ]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -57,5 +60,23 @@ jobs:
         with:
           name: twrp-a05s-recovery
           path: |
+            twrp-a05s-recovery.img
+            twrp-a05s-recovery.tar
+
+      - name: Publish release
+        if: success()
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0-a057g
+          name: TWRP for Galaxy A05s (SM-A057G/DSN)
+          body: |
+            TWRP 12.1 recovery for the Samsung Galaxy A05s, built for the SM-A057G/DSN variant.
+
+            Files:
+            - twrp-a05s-recovery.img - raw recovery image
+            - twrp-a05s-recovery.tar - Odin-flashable archive (AP slot)
+
+            Untested on hardware. Unlock the bootloader first; see FLASHING.md. Do NOT flash to an SM-A057F or other models without checking firmware compatibility.
+          files: |
             twrp-a05s-recovery.img
             twrp-a05s-recovery.tar
